@@ -1,0 +1,6 @@
+name: congress
+summary: Policy as a service
+description: |
+ Congress is an open policy framework for the cloud. With Congress, a cloud
+ operator can declare, monitor, enforce, and audit "policy" in a heterogeneous
+ cloud environment.
