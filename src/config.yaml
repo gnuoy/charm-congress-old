@@ -1,0 +1,8 @@
+options:
+  source-branch:
+    default: ''
+    type: string
+    description: |
+      Trigger charm to deploy from git repo and specify which branch
+      to check out i.e. stable/liberty
+

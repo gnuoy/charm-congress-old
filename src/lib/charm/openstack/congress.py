@@ -4,11 +4,12 @@
 # needed on the class.
 
 import charmhelpers.contrib.openstack.utils as ch_utils
-
+import charmhelpers.core.hookenv as hookenv
 import charms_openstack.charm
 import charms_openstack.adapters
 import charms_openstack.ip as os_ip
 
+import subprocess
 
 def install():
     """Use the singleton from the CongressCharm to install the packages on the
@@ -58,6 +59,13 @@ class CongressCharm(charms_openstack.charm.OpenStackCharm):
     packages = ['congress-server', 'congress-common', 'python-antlr3',
                 'python-pymysql']
 
+    deploy_from_src_packages = ['python-pip', 'default-jre', 'apg', 'git',
+                                'gcc', 'python-dev', 'libxml2', 'libxslt1-dev',
+                                'libzip-dev', 'python-virtualenv',
+                                'python-setuptools', 'python-pbr',
+                                'python-tox', 'libffi-dev', 'openssl',
+                                'libssl-dev', 'python-mysqldb']
+
     # Init services the charm manages
     services = ['congress-server']
 
@@ -91,8 +99,16 @@ class CongressCharm(charms_openstack.charm.OpenStackCharm):
         If no release is passed, then the charm determines the release from the
         ch_utils.os_release() function.
         """
+        self.src_branch = hookenv.config('source-branch')
+        if self.src_branch:
+            self.install_dir = "/home/ubuntu/congress"
+            init_script = '/etc/init/congress-server.conf'
+            self.restart_map[init_script] = ['congress-server']
         if release is None:
-            release = ch_utils.os_release('python-keystonemiddleware')
+            if self.src_branch:
+                release = self.src_branch.split('/')[1]
+            else:
+                release = ch_utils.os_release('python-keystonemiddleware')
         super(CongressCharm, self).__init__(release=release, **kwargs)
 
     def install(self):
@@ -101,4 +117,38 @@ class CongressCharm(charms_openstack.charm.OpenStackCharm):
         """
         self.configure_source()
         # and do the actual install
+        
+        if self.src_branch:
+            self.packages = self.deploy_from_src_packages
+        
         super(CongressCharm, self).install()
+        if self.src_branch:
+            self.src_install()
+
+    def src_install(self):
+        subprocess.check_call(['apt-get', 'build-dep', 'python-mysqldb', '-y'])
+        subprocess.check_call(['pip', 'install', '--upgrade', 'pip',
+                               'virtualenv', 'setuptools' ,'pbr', 'tox'])
+        subprocess.check_call(['git', '-C', '/home/ubuntu', 'clone',
+                               'https://github.com/openstack/congress.git'])
+        subprocess.check_call(['git', '-C', self.install_dir, 'checkout',
+                               '{}'.format(self.src_branch)])
+        subprocess.check_call(['virtualenv', '--python=python2.7',
+                              self.install_dir])
+        subprocess.check_call(['bin/pip', 'install' ,'-r', 'requirements.txt'],
+                              cwd=self.install_dir)
+        subprocess.check_call(['bin/pip', 'install', '.'],
+                              cwd=self.install_dir)
+        subprocess.check_call(['bin/pip', 'install', 'tox'],
+                              cwd=self.install_dir)
+        subprocess.check_call(['bin/pip', 'install', 'MySQL-python'],
+                              cwd=self.install_dir)
+        subprocess.check_call(['bin/tox', '-egenconfig'], cwd=self.install_dir)
+        subprocess.check_call(['chown', '-R', 'ubuntu', self.install_dir])
+
+    def db_sync(self):
+        if self.src_branch:
+            self.sync_cmd[0] = 'bin/congress-db-manage'
+            subprocess.check_call(self.sync_cmd, cwd=self.install_dir)
+        else:
+            super(CongressCharm, self).db_sync()
