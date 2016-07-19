@@ -88,7 +88,7 @@ class CongressCharm(charms_openstack.charm.OpenStackCharm):
     services = ['congress-server']
 
     # Standard interface adapters class to use.
-    adapters_class = charms_openstack.adapters.OpenStackRelationAdapters
+    adapters_class = charms_openstack.adapters.OpenStackAPIRelationAdapters
 
     # Ports that need exposing.
     default_service = 'congress-api'
