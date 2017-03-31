@@ -71,7 +71,7 @@ def render_configs(interfaces_list):
 class CongressCharm(charms_openstack.charm.OpenStackCharm):
 
     service_name = 'congress'
-    release = 'mitaka'
+    release = 'newton'
      
     # Packages the service needs installed
     packages = ['congress-server', 'congress-common', 'python-antlr3',
